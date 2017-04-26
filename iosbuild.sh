@@ -75,9 +75,8 @@ readonly INCLUDES="common/file_util.h
 readonly PLATFORMS="iPhoneSimulator
                     iPhoneSimulator64
                     iPhoneOS-V7
-                    iPhoneOS-V7s
                     iPhoneOS-V7-arm64"
-readonly TARGETDIR="WebM.framework"
+readonly TARGETDIR="lib"
 readonly DEVELOPER="$(xcode-select --print-path)"
 readonly PLATFORMSROOT="${DEVELOPER}/Platforms"
 readonly LIPO="$(xcrun -sdk iphoneos${SDK} -find lipo)"
@@ -125,7 +124,7 @@ while [ -n "$1" ]; do
 done
 
 readonly OPT_FLAGS="${OPT_FLAGS}"
-readonly OUTDIR="${OUTDIR:-framework}"
+readonly OUTDIR="${OUTDIR:-output}"
 
 if [ "${VERBOSE}" = "yes" ]; then
 cat << EOF
@@ -203,5 +202,5 @@ for header_file in ${INCLUDES}; do
   eval cp -p ${header_file} "${framework_header_dir}/${header_file}" ${devnull}
 done
 
-eval ${LIPO} -create ${LIBLIST} -output "${OUTDIR}/${TARGETDIR}/WebM" ${devnull}
+eval ${LIPO} -create ${LIBLIST} -output "${OUTDIR}/${TARGETDIR}/libwebm.a" ${devnull}
 echo "Succesfully built ${TARGETDIR} in ${OUTDIR}."

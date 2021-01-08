@@ -8,10 +8,10 @@
 ##  in the file PATENTS.  All contributing project authors may
 ##  be found in the AUTHORS file in the root of the source tree.
 ##
-## This script generates 'WebM.framework'. An iOS app can mux/demux WebM
-## container files by including 'WebM.framework'.
+## This script generates 'libwebm.xcframework'. An iOS app can mux/demux WebM
+## container files by including 'libwebm.xcframework'.
 ##
-## Run ./iosbuild.sh to generate 'WebM.framework'. By default the framework
+## Run ./iosbuild.sh to generate 'libwebm.xcframework'. By default the framework
 ## bundle will be created in a directory called framework. Use --out-dir to
 ## change the output directory.
 ##
@@ -74,6 +74,7 @@ readonly INCLUDES="common/file_util.h
                    mkvparser/mkvreader.h"
 readonly PLATFORMS="iPhoneSimulator
                     iPhoneSimulator64
+                    iPhoneSimulator-arm64
                     iPhoneOS-V7
                     iPhoneOS-V7-arm64"
 readonly TARGETDIR="lib"
@@ -139,8 +140,12 @@ cat << EOF
 EOF
 fi
 
+readonly framework_header_dir="${OUTDIR}/${TARGETDIR}/Headers"
+readonly iosver=9.3
+
 rm -rf "${OUTDIR}/${TARGETDIR}"
-mkdir -p "${OUTDIR}/${TARGETDIR}/Headers/"
+rm -rf "${OUTDIR}/libwebm.iphoneos.a" "${OUTDIR}/libwebm.simulator.a" "${OUTDIR}/libwebm.xcframework"
+mkdir -p "${framework_header_dir}"
 
 for PLATFORM in ${PLATFORMS}; do
   ARCH2=""
@@ -148,23 +153,33 @@ for PLATFORM in ${PLATFORMS}; do
     PLATFORM="iPhoneOS"
     ARCH="aarch64"
     ARCH2="arm64"
+    TARGET="arm64-apple-ios${iosver}"
   elif [ "${PLATFORM}" = "iPhoneOS-V7s" ]; then
     PLATFORM="iPhoneOS"
     ARCH="armv7s"
+    TARGET="armv7s-apple-ios${iosver}"
   elif [ "${PLATFORM}" = "iPhoneOS-V7" ]; then
     PLATFORM="iPhoneOS"
     ARCH="armv7"
+    TARGET="armv7-apple-ios${iosver}"
   elif [ "${PLATFORM}" = "iPhoneOS-V6" ]; then
     PLATFORM="iPhoneOS"
     ARCH="armv6"
+    TARGET="armv6-apple-ios${iosver}"
   elif [ "${PLATFORM}" = "iPhoneSimulator64" ]; then
     PLATFORM="iPhoneSimulator"
     ARCH="x86_64"
+    TARGET="x86_64-apple-ios${iosver}-simulator"
+  elif [ "${PLATFORM}" = "iPhoneSimulator-arm64" ]; then
+    PLATFORM="iPhoneSimulator"
+    ARCH="arm64"
+    TARGET="arm64-apple-ios${iosver}-simulator"
   else
     ARCH="i386"
+    TARGET="i386-apple-ios${iosver}-simulator"
   fi
 
-  LIBDIR="${OUTDIR}/${PLATFORM}-${SDK}-${ARCH}"
+  LIBDIR="${OUTDIR}/${TARGET}"
   LIBDIRS="${LIBDIRS} ${LIBDIR}"
   LIBFILE="${LIBDIR}/libwebm.a"
   eval mkdir -p "${LIBDIR}" ${devnull}
@@ -173,7 +188,7 @@ for PLATFORM in ${PLATFORMS}; do
   SDKROOT="${PLATFORMSROOT}/"
   SDKROOT="${SDKROOT}${PLATFORM}.platform/Developer/SDKs/${PLATFORM}${SDK}.sdk/"
   CXXFLAGS="-arch ${ARCH2:-${ARCH}} -isysroot ${SDKROOT} ${OPT_FLAGS}
-            -miphoneos-version-min=6.0 -stdlib=libc++"
+            -target ${TARGET} -stdlib=libc++"
 
   # enable bitcode if available
   if [ "${SDK_MAJOR_VERSION}" -gt 8 ]; then
@@ -185,14 +200,13 @@ for PLATFORM in ${PLATFORMS}; do
 
   # copy lib and add it to LIBLIST.
   eval cp libwebm.a "${LIBFILE}" ${devnull}
-  LIBLIST="${LIBLIST} ${LIBFILE}"
+  LIBLIST="${LIBLIST} -library ${LIBFILE} -headers ${OUTDIR}/${TARGETDIR}/Headers"
 
   # clean build so we can go again.
   eval make -f Makefile.unix clean ${devnull}
 done
 
 # create include sub dirs in framework dir.
-readonly framework_header_dir="${OUTDIR}/${TARGETDIR}/Headers"
 readonly framework_header_sub_dirs="common mkvmuxer mkvparser"
 for dir in ${framework_header_sub_dirs}; do
   mkdir "${framework_header_dir}/${dir}"
@@ -202,5 +216,8 @@ for header_file in ${INCLUDES}; do
   eval cp -p ${header_file} "${framework_header_dir}/${header_file}" ${devnull}
 done
 
-eval ${LIPO} -create ${LIBLIST} -output "${OUTDIR}/${TARGETDIR}/libwebm.a" ${devnull}
+eval lipo -create "${OUTDIR}/*-simulator/libwebm.a" -output "${OUTDIR}/libwebm.simulator.a" ${devnull}
+eval lipo -create "${OUTDIR}/*-ios${iosver}/libwebm.a" -output "${OUTDIR}/libwebm.iphoneos.a" ${devnull}
+
+eval xcodebuild -create-xcframework -library "${OUTDIR}/libwebm.simulator.a" -headers "${framework_header_dir}" -library "${OUTDIR}/libwebm.iphoneos.a" -output "${OUTDIR}/libwebm.xcframework" ${devnull}
 echo "Succesfully built ${TARGETDIR} in ${OUTDIR}."

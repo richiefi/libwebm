@@ -219,5 +219,5 @@ done
 eval lipo -create "${OUTDIR}/*-simulator/libwebm.a" -output "${OUTDIR}/libwebm.simulator.a" ${devnull}
 eval lipo -create "${OUTDIR}/*-ios${iosver}/libwebm.a" -output "${OUTDIR}/libwebm.iphoneos.a" ${devnull}
 
-eval xcodebuild -create-xcframework -library "${OUTDIR}/libwebm.simulator.a" -headers "${framework_header_dir}" -library "${OUTDIR}/libwebm.iphoneos.a" -output "${OUTDIR}/libwebm.xcframework" ${devnull}
+eval xcodebuild -create-xcframework -library "${OUTDIR}/libwebm.simulator.a" -headers "${framework_header_dir}" -library "${OUTDIR}/libwebm.iphoneos.a" -headers "${framework_header_dir}" -output "${OUTDIR}/libwebm.xcframework" ${devnull}
 echo "Succesfully built ${TARGETDIR} in ${OUTDIR}."
